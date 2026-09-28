@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuytu Medya — İçerik Yönetimi</title>
+<style>
+  :root{--bg:#ffffff;--panel:#f4f3ef;--ink:#141311;--muted:#6d6a62;--accent:#a8552e;--line:#e6e4dd;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,sans-serif;line-height:1.5;}
+  .wrap{max-width:720px;margin:0 auto;padding:40px 20px 80px;}
+  h1{font-size:22px;margin:0 0 6px;}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 28px;}
+  .field{margin-bottom:16px;}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.02em;}
+  input,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;background:var(--panel);color:var(--ink);}
+  textarea{min-height:56px;resize:vertical;}
+  .row{display:flex;gap:10px;align-items:center;position:sticky;top:0;background:var(--bg);padding:14px 0;border-bottom:1px solid var(--line);margin-bottom:20px;z-index:5;}
+  button{background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer;}
+  button:disabled{opacity:.5;cursor:default;}
+  #status{font-size:13px;color:var(--muted);}
+  #gate{max-width:360px;margin:80px auto;text-align:center;}
+  #gate input{margin-bottom:12px;}
+  #app{display:none;}
+</style>
+</head>
+<body>
+
+<div id="gate" class="wrap">
+  <h1>Kuytu Medya — İçerik Yönetimi</h1>
+  <p class="sub">Devam etmek için şifreyi girin.</p>
+  <input id="pw" type="password" placeholder="Şifre">
+  <button id="enter" style="width:100%;">Giriş Yap</button>
+  <p id="gate-error" style="color:#b3261e;font-size:13px;display:none;">Şifre yanlış.</p>
+</div>
+
+<div id="app" class="wrap">
+  <div class="row">
+    <button id="save">Kaydet</button>
+    <span id="status"></span>
+  </div>
+  <p class="sub">Aşağıdaki alanları değiştirip "Kaydet"e basın. Değişiklikler anında canlı sitede görünür.</p>
+  <div id="fields"></div>
+</div>
+
+<script>
+(function(){
+  const gate = document.getElementById('gate');
+  const app = document.getElementById('app');
+  const pwInput = document.getElementById('pw');
+  const enterBtn = document.getElementById('enter');
+  const gateError = document.getElementById('gate-error');
+  const fieldsEl = document.getElementById('fields');
+  const saveBtn = document.getElementById('save');
+  const statusEl = document.getElementById('status');
+  let password = '';
+  let content = {};
+
+  const LABELS = {
+    hero_strip: 'Üst Şerit', hero_title: 'Ana Başlık (kalın yazı, satır sonu için <br> kullanın)', hero_desc: 'Ana Açıklama',
+    quick1_num: 'Hızlı Kutu 1 - Etiket', quick1_label: 'Hızlı Kutu 1 - Başlık',
+    quick2_num: 'Hızlı Kutu 2 - Etiket', quick2_label: 'Hızlı Kutu 2 - Başlık',
+    quick3_num: 'Hızlı Kutu 3 - Etiket', quick3_label: 'Hızlı Kutu 3 - Başlık',
+    quick4_num: 'Hızlı Kutu 4 - Etiket', quick4_label: 'Hızlı Kutu 4 - Başlık',
+    hizmetler_title: 'Hizmetler Başlığı', hizmetler_desc: 'Hizmetler Açıklaması',
+    svc1_title: 'Hizmet 1 - Başlık', svc1_desc: 'Hizmet 1 - Açıklama',
+    svc2_title: 'Hizmet 2 - Başlık', svc2_desc: 'Hizmet 2 - Açıklama',
+    svc3_title: 'Hizmet 3 - Başlık', svc3_desc: 'Hizmet 3 - Açıklama',
+    svc4_title: 'Hizmet 4 - Başlık', svc4_desc: 'Hizmet 4 - Açıklama',
+    surec_title: 'Süreç Başlığı', surec_desc: 'Süreç Açıklaması',
+    step1_title: 'Aşama 1 - Başlık', step1_sub: 'Aşama 1 - Alt Başlık', step1_desc: 'Aşama 1 - Açıklama',
+    step2_title: 'Aşama 2 - Başlık', step2_sub: 'Aşama 2 - Alt Başlık', step2_desc: 'Aşama 2 - Açıklama',
+    step3_title: 'Aşama 3 - Başlık', step3_sub: 'Aşama 3 - Alt Başlık', step3_desc: 'Aşama 3 - Açıklama',
+    step4_title: 'Aşama 4 - Başlık', step4_sub: 'Aşama 4 - Alt Başlık', step4_desc: 'Aşama 4 - Açıklama',
+    cta_title: 'CTA Şeridi - Başlık', cta_desc: 'CTA Şeridi - Açıklama',
+    iletisim_title: 'İletişim Başlığı', iletisim_desc: 'İletişim Açıklaması', badge_text: 'Rozet Yazısı',
+    email: 'E-Posta Adresi', whatsapp_number: 'WhatsApp Numarası (ülke kodlu, boşluksuz, ör: 905XXXXXXXXX)',
+    whatsapp_display: 'WhatsApp Numarası (görünen, ör: 0543 847 29 83)',
+    instagram_handle: 'Instagram Kullanıcı Adı (@ ile)', instagram_url: 'Instagram Linki',
+    footer_desc: 'Footer Açıklaması', motto: 'Stüdyo Sloganı', motto_sub: 'Slogan Alt Yazısı', copyright_text: 'Telif Hakkı Satırı'
+  };
+
+  function renderFields(){
+    fieldsEl.innerHTML = '';
+    Object.keys(LABELS).forEach(function(key){
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      const label = document.createElement('label');
+      label.textContent = LABELS[key];
+      const long = (content[key] || '').length > 70;
+      const input = document.createElement(long ? 'textarea' : 'input');
+      input.value = content[key] || '';
+      input.dataset.key = key;
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      fieldsEl.appendChild(wrap);
+    });
+  }
+
+  async function loadContent(){
+    const res = await fetch('/api/content', { cache: 'no-store' });
+    content = await res.json();
+    renderFields();
+  }
+
+  enterBtn.addEventListener('click', async function(){
+    password = pwInput.value;
+    if(!password){ return; }
+    try {
+      await loadContent();
+      gate.style.display = 'none';
+      app.style.display = 'block';
+    } catch(e){
+      gateError.style.display = 'block';
+    }
+  });
+  pwInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') enterBtn.click(); });
+
+  saveBtn.addEventListener('click', async function(){
+    const updated = {};
+    fieldsEl.querySelectorAll('[data-key]').forEach(function(el){ updated[el.dataset.key] = el.value; });
+    saveBtn.disabled = true; statusEl.textContent = 'Kaydediliyor...';
+    try {
+      const res = await fetch('/api/content', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify(updated)
+      });
+      if(res.status === 401){
+        statusEl.textContent = 'Şifre hatalı, kayıt yapılamadı.';
+      } else if(res.ok){
+        content = updated;
+        statusEl.textContent = 'Kaydedildi ✓';
+        setTimeout(function(){ statusEl.textContent = ''; }, 2500);
+      } else {
+        statusEl.textContent = 'Bir hata oluştu, tekrar deneyin.';
+      }
+    } catch(e){
+      statusEl.textContent = 'Bağlantı hatası, tekrar deneyin.';
+    }
+    saveBtn.disabled = false;
+  });
+})();
+</script>
+
+</body>
+</html>
